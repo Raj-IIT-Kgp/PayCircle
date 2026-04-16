@@ -10,7 +10,7 @@ export const SendMoney = () => {
     const navigate = useNavigate();
 
     return (
-        <div className="flex justify-center items-center h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+        <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 px-4 py-8">
             <div className="max-w-md w-full p-6 bg-white rounded-xl shadow-lg">
                 <h2 className="text-3xl font-bold text-center mb-6 text-indigo-700">Send Money</h2>
                 <div className="flex items-center space-x-4 mb-6">

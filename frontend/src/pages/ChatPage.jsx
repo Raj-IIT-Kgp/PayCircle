@@ -139,7 +139,8 @@ function PayModal({ recipient, onClose, onSuccess, token }) {
             display: "flex", alignItems: "center", justifyContent: "center",
         }}>
             <div style={{
-                background: "#fff", borderRadius: 20, padding: "32px 28px", width: 340,
+                background: "#fff", borderRadius: 20, padding: "32px 28px",
+                width: "min(340px, calc(100vw - 32px))",
                 boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
                 display: "flex", flexDirection: "column", gap: 18,
             }}>
@@ -228,6 +229,8 @@ export default function ChatPage() {
     const [activeDropdownMsgId, setActiveDropdownMsgId] = useState(null);
     const [dropdownPos, setDropdownPos] = useState(null); // { top, left?, right? } for fixed dropdown
     const [showDeleteModal, setShowDeleteModal] = useState(null); // { msgId, isMine }
+    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+    const [showSidebar, setShowSidebar] = useState(true);
     const typingTimeoutRef = useRef({});
 
     const fileInputRef = useRef(null);
@@ -271,10 +274,20 @@ export default function ChatPage() {
             .catch(() => {});
     }, [wsVersion, token]);
 
+    // ── Mobile resize handler ──────────────────────────────────────────────────
+    useEffect(() => {
+        const handler = () => setIsMobile(window.innerWidth < 768);
+        window.addEventListener("resize", handler);
+        return () => window.removeEventListener("resize", handler);
+    }, []);
+
     // ── Restore selected user from URL ─────────────────────────────────────────
     useEffect(() => {
         const id = query.get("id");
-        if (id) setSelectedUserId(id);
+        if (id) {
+            setSelectedUserId(id);
+            if (window.innerWidth < 768) setShowSidebar(false);
+        }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
@@ -707,6 +720,7 @@ export default function ChatPage() {
         setConvoUsers(prev => prev.some(u => u._id === user._id) ? prev : [...prev, user]);
         setSelectedUserId(user._id);
         setSearch(""); setSearchResults([]);
+        if (isMobile) setShowSidebar(false);
     };
 
     const selectedUser = convoUsers.find(u => u._id === selectedUserId);
@@ -1069,8 +1083,11 @@ export default function ChatPage() {
 
             {/* ── Sidebar ────────────────────────────────────────────────────── */}
             <div style={{
-                width: 280, borderRight: "1px solid #e0e0e0",
-                background: "#fff", display: "flex", flexDirection: "column",
+                width: isMobile ? "100%" : 280,
+                borderRight: isMobile ? "none" : "1px solid #e0e0e0",
+                background: "#fff",
+                display: isMobile && !showSidebar ? "none" : "flex",
+                flexDirection: "column",
             }}>
                 <div style={{
                     padding: "20px 16px 8px 16px", fontWeight: 700,
@@ -1124,6 +1141,7 @@ export default function ChatPage() {
                                 onClick={() => {
                                     setSelectedUserId(u._id);
                                     setUnreadCounts(prev => ({ ...prev, [u._id]: 0 }));
+                                    if (isMobile) setShowSidebar(false);
                                 }}
                             >
                                 {/* Avatar */}
@@ -1158,27 +1176,43 @@ export default function ChatPage() {
             </div>
 
             {/* ── Main chat area ──────────────────────────────────────────────── */}
-            <div style={{ flex: 1, display: "flex", flexDirection: "column", position: "relative", background: C.chatBg }}>
+            <div style={{ flex: 1, display: isMobile && showSidebar ? "none" : "flex", flexDirection: "column", position: "relative", background: C.chatBg, width: isMobile ? "100%" : undefined }}>
 
                 {/* Header */}
                 <div style={{
                     height: 64, background: C.primaryDark, color: "#fff",
-                    display: "flex", alignItems: "center", padding: "0 24px",
+                    display: "flex", alignItems: "center", padding: "0 12px",
                     fontWeight: 500, fontSize: 20, boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-                    flexShrink: 0,
+                    flexShrink: 0, gap: 8,
                 }}>
-                    <span style={{ fontWeight: 700, marginRight: 24 }}>PayCircle</span>
+                    {isMobile ? (
+                        <button
+                            onClick={() => setShowSidebar(true)}
+                            style={{
+                                background: "rgba(255,255,255,0.15)", color: "#fff",
+                                border: "none", borderRadius: "50%", width: 36, height: 36,
+                                display: "flex", alignItems: "center", justifyContent: "center",
+                                cursor: "pointer", flexShrink: 0,
+                            }}
+                        >
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="#fff">
+                                <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
+                            </svg>
+                        </button>
+                    ) : (
+                        <span style={{ fontWeight: 700, marginRight: 8, flexShrink: 0 }}>PayCircle</span>
+                    )}
                     {selectedUser && (
-                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, minWidth: 0 }}>
                             <div style={{
                                 width: 36, height: 36, borderRadius: "50%", background: C.primary,
                                 display: "flex", alignItems: "center", justifyContent: "center",
-                                fontSize: 16, color: "#fff", fontWeight: 700,
+                                fontSize: 16, color: "#fff", fontWeight: 700, flexShrink: 0,
                             }}>
                                 {((selectedUser.firstName?.[0] || "") + (selectedUser.lastName?.[0] || "")).toUpperCase()}
                             </div>
-                            <div style={{ flex: 1 }}>
-                                <div style={{ fontSize: 16, fontWeight: 700 }}>{selectedUser.firstName} {selectedUser.lastName}</div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ fontSize: 16, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{selectedUser.firstName} {selectedUser.lastName}</div>
                                 <div style={{ fontSize: 11, color: typingMap[selectedUserId] ? "#bef264" : "#e0e7ff", opacity: 0.9 }}>
                                     {typingMap[selectedUserId] ? "typing..." : (presenceMap[selectedUserId]?.status === "ONLINE" ? "Online" : "")}
                                 </div>
@@ -1219,11 +1253,21 @@ export default function ChatPage() {
                         </button>
                     )}
 
-                    <button onClick={() => navigate("/dashboard")} style={{
+                    <button onClick={() => navigate("/dashboard")} title="Dashboard" style={{
                         marginLeft: "auto", background: "#fff", color: C.primaryDark,
-                        border: "none", borderRadius: 20, padding: "8px 20px",
+                        border: "none", borderRadius: isMobile ? "50%" : 20,
+                        padding: isMobile ? 0 : "8px 20px",
+                        width: isMobile ? 36 : undefined, height: isMobile ? 36 : undefined,
                         fontWeight: 600, fontSize: 14, cursor: "pointer",
-                    }}>Dashboard</button>
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        flexShrink: 0,
+                    }}>
+                        {isMobile ? (
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill={C.primaryDark}>
+                                <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
+                            </svg>
+                        ) : "Dashboard"}
+                    </button>
                 </div>
 
                 {/* Messages container */}

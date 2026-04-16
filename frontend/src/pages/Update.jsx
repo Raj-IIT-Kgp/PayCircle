@@ -87,9 +87,9 @@ export const Update = () => {
     };
 
     return (
-        <div>
+        <div className="min-h-screen bg-gray-100">
             <Appbar />
-        <div className="flex justify-center items-center min-h-screen bg-gray-100">
+        <div className="flex justify-center items-start px-4 py-8">
             <div className="max-w-md w-full p-6 bg-white rounded shadow-xl">
                 <h2 className="text-2xl font-bold mb-4">Update Profile</h2>
                 <form onSubmit={handleSubmit} className="space-y-4">

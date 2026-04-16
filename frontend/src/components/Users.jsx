@@ -78,7 +78,7 @@ function UserRow({ user }) {
                     {user.phone && <p className="text-xs text-slate-400">{user.phone}</p>}
                 </div>
             </div>
-            <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="flex gap-2 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                 <button
                     onClick={() => navigate(`/chatpage?id=${user._id}`)}
                     className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition-colors"

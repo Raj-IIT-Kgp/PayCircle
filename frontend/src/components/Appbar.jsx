@@ -6,6 +6,7 @@ export const Appbar = () => {
     const [name, setName] = useState("");
     const [profileImage, setProfileImage] = useState("");
     const [menuOpen, setMenuOpen] = useState(false);
+    const [mobileNavOpen, setMobileNavOpen] = useState(false);
     const navigate = useNavigate();
     const location = useLocation();
     const menuRef = useRef();
@@ -78,6 +79,22 @@ export const Appbar = () => {
 
                 <div className="flex-1 sm:hidden" />
 
+                {/* Hamburger – mobile only */}
+                <button
+                    onClick={() => setMobileNavOpen(o => !o)}
+                    className="sm:hidden p-2 rounded-lg text-slate-600 hover:bg-slate-100 mr-1"
+                >
+                    {mobileNavOpen ? (
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    ) : (
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                        </svg>
+                    )}
+                </button>
+
                 {/* Profile */}
                 <div className="relative" ref={menuRef}>
                     <button
@@ -121,6 +138,25 @@ export const Appbar = () => {
                     )}
                 </div>
             </div>
+
+            {/* Mobile nav dropdown */}
+            {mobileNavOpen && (
+                <div className="sm:hidden border-t border-slate-100 bg-white px-4 py-3 space-y-1">
+                    {navLinks.map(link => (
+                        <button
+                            key={link.path}
+                            onClick={() => { navigate(link.path); setMobileNavOpen(false); }}
+                            className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                                isActive(link.path)
+                                    ? "bg-indigo-50 text-indigo-700"
+                                    : "text-slate-600 hover:bg-slate-100"
+                            }`}
+                        >
+                            {link.label}
+                        </button>
+                    ))}
+                </div>
+            )}
         </nav>
     );
 };
