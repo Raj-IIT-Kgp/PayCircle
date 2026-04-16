@@ -6,7 +6,7 @@ COPY package*.json ./
 COPY prisma ./prisma/
 RUN npm install && npx prisma generate
 EXPOSE 3000
-CMD ["npm", "run", "dev"]
+CMD ["sh", "-c", "npx prisma generate && npm run dev"]
 
 # ── Production stage ──────────────────────────────────────────────────────────
 FROM node:20-alpine AS production

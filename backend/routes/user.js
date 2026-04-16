@@ -5,6 +5,7 @@ const prisma = require("../db");
 const jwt = require("jsonwebtoken");
 const { JWT_SECRET } = require("../config");
 const { authMiddleware } = require("../middleware");
+const { getOnlineUserIds } = require('../websocket');
 const twilio = require("twilio");
 
 const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
@@ -30,7 +31,7 @@ router.post("/signup/request-otp", async (req, res) => {
     if (!phone) return res.status(400).json({ message: "Phone number is required" });
 
     const existing = await prisma.user.findUnique({ where: { phone } });
-    if (existing) return res.status(411).json({ message: "Phone number already registered" });
+    if (existing) return res.status(409).json({ message: "Phone number already registered" });
 
     try {
         await sendOtp(phone);
@@ -58,7 +59,7 @@ router.post("/signup", async (req, res) => {
         const { success, error: zodError } = signupBody.safeParse(req.body);
         if (!success) {
             console.log("Zod validation failed:", zodError);
-            return res.status(411).json({ message: "Incorrect inputs", details: zodError.errors });
+            return res.status(400).json({ message: "Incorrect inputs", details: zodError.errors });
         }
 
         const { phone, otp, firstName, lastName, password, email } = req.body;
@@ -71,7 +72,7 @@ router.post("/signup", async (req, res) => {
         delete otpStore[phone];
 
         const existing = await prisma.user.findUnique({ where: { phone } });
-        if (existing) return res.status(411).json({ message: "Phone number already registered" });
+        if (existing) return res.status(409).json({ message: "Phone number already registered" });
 
         const user = await prisma.user.create({
             data: {
@@ -109,7 +110,7 @@ const signinBody = zod.object({
 router.post("/signin", async (req, res) => {
     try {
         const { success } = signinBody.safeParse(req.body);
-        if (!success) return res.status(411).json({ message: "Incorrect inputs" });
+        if (!success) return res.status(400).json({ message: "Incorrect inputs" });
 
         const user = await prisma.user.findFirst({
             where: { phone: req.body.phone, password: req.body.password }
@@ -119,7 +120,7 @@ router.post("/signin", async (req, res) => {
             const token = jwt.sign({ userId: user.id }, JWT_SECRET);
             res.json({ message: "Logged in successfully", token });
         } else {
-            res.status(411).json({ message: "Incorrect phone number or password" });
+            res.status(401).json({ message: "Incorrect phone number or password" });
         }
     } catch (e) {
         res.status(500).json({ message: "Error while logging in" });
@@ -171,7 +172,7 @@ const updateBody = zod.object({
 
 router.put("/update", authMiddleware, async (req, res) => {
     const { success } = updateBody.safeParse(req.body);
-    if (!success) return res.status(411).json({ message: "Error while updating information" });
+    if (!success) return res.status(400).json({ message: "Error while updating information" });
 
     const data = {};
     if (req.body.password !== undefined) data.password = req.body.password;
@@ -215,6 +216,11 @@ router.get("/bulk", authMiddleware, async (req, res) => {
     res.json({
         users: users.map(u => ({ _id: u.id, phone: u.phone, firstName: u.firstName, lastName: u.lastName, profileImage: u.profileImage, lastSeen: u.lastSeen }))
     });
+});
+
+// ─── Currently online users ───────────────────────────────────────────────────
+router.get("/online", authMiddleware, (req, res) => {
+    res.json({ userIds: getOnlineUserIds() });
 });
 
 module.exports = router;

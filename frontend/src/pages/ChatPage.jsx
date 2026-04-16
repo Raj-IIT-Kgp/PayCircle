@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useWebSocket } from "../context/WebSocketContext";
-import VoiceCall from "../components/VoiceCall";
+import { useCall } from "../context/CallContext";
 import { useLocation, useNavigate } from "react-router-dom";
 import Picker from "@emoji-mart/react";
 import data from "@emoji-mart/data";
@@ -200,19 +200,18 @@ function PayModal({ recipient, onClose, onSuccess, token }) {
 // ─────────────────────────────────────────────────────────────────────────────
 export default function ChatPage() {
     const { ws, wsVersion } = useWebSocket();
+    const { callData, setCallData, myUser } = useCall();
     const [convoUsers, setConvoUsers] = useState([]);
     const [selectedUserId, setSelectedUserId] = useState(null);
     const [messages, setMessages] = useState([]);
     const [input, setInput] = useState("");
-    const [myUser, setMyUser] = useState(null);
     const [search, setSearch] = useState("");
     const [searchResults, setSearchResults] = useState([]);
     const [showEmoji, setShowEmoji] = useState(false);
     const [showPayModal, setShowPayModal] = useState(false);
     const [unreadScroll, setUnreadScroll] = useState(0);   // new msgs while scrolled up
     const [unreadCounts, setUnreadCounts] = useState({});  // badge per user in sidebar
-    const [callData, setCallData] = useState(null);       // { type: 'outgoing'|'incoming', offer?, targetUser }
-    
+
     // Voice Message states
     const [isRecording, setIsRecording] = useState(false);
     const [recDuration, setRecDuration] = useState(0);
@@ -258,14 +257,19 @@ export default function ChatPage() {
         setActiveDropdownMsgId(null);
     };
 
-    // ── Fetch current user ─────────────────────────────────────────────────────
+    // ── Seed presenceMap with currently online users on every WS (re)connect ────
     useEffect(() => {
-        if (!token) return;
-        fetch(`${API_URL}/user/info`, { headers: { Authorization: `Bearer ${token}` } })
+        if (!wsVersion || !token) return;
+        fetch(`${API_URL}/user/online`, { headers: { Authorization: `Bearer ${token}` } })
             .then(r => r.json())
-            .then(d => setMyUser(d.user))
-            .catch(console.error);
-    }, [token]);
+            .then(d => {
+                const now = new Date();
+                const initial = {};
+                (d.userIds || []).forEach(id => { initial[id] = { status: "ONLINE", lastSeen: now }; });
+                setPresenceMap(prev => ({ ...initial, ...prev }));
+            })
+            .catch(() => {});
+    }, [wsVersion, token]);
 
     // ── Restore selected user from URL ─────────────────────────────────────────
     useEffect(() => {
@@ -430,19 +434,8 @@ export default function ChatPage() {
                     return; // don't let this fall through to chat-message logic
                 }
                 
-                if (msg.type === "call_offer" || msg.type === "call_answer" || msg.type === "ice_candidate") return;
-
-                // Incoming Call Offer — use name embedded in payload, no fetch needed
-                if (msg.type === "call_offer") {
-                    const parts = (msg.callerName || "").split(" ");
-                    const targetUser = {
-                        _id:       msg.from,
-                        firstName: parts[0] || "Caller",
-                        lastName:  parts.slice(1).join(" ") || "",
-                    };
-                    setCallData({ type: "incoming", offer: msg.offer, targetUser });
-                    return;
-                }
+                // Call signals are handled globally by CallContext / VoiceCall
+                if (["call_offer", "call_answer", "ice_candidate", "call_rejected", "call_ended"].includes(msg.type)) return;
 
                 // 1. Read receipt — update our sent messages to blue ticks
                 if (msg.type === "read_receipt" && msg.from === selectedUserId) {
@@ -1066,17 +1059,6 @@ export default function ChatPage() {
                 </div>
             )}
 
-            {callData && (
-                <VoiceCall 
-                    ws={ws} 
-                    myUser={myUser} 
-                    selectedUser={callData.targetUser} 
-                    initialOffer={callData.offer}
-                    isIncoming={callData.type === 'incoming'}
-                    onCallEnd={() => setCallData(null)} 
-                />
-            )}
-
             {showPayModal && selectedUser && (
                 <PayModal
                     recipient={selectedUser} token={token}
@@ -1206,7 +1188,7 @@ export default function ChatPage() {
                     
                     {selectedUser && (
                         <button
-                            onClick={() => setCallData({ type: "outgoing", targetUser: selectedUser })}
+                            onClick={() => setCallData({ type: "outgoing", targetUser: selectedUser, withVideo: false })}
                             title="Voice call"
                             style={{
                                 marginLeft: 16, background: "rgba(255,255,255,0.15)", color: "#fff",
@@ -1217,6 +1199,22 @@ export default function ChatPage() {
                         >
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="#fff">
                                 <path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1C10.6 21 3 13.4 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1L6.6 10.8z"/>
+                            </svg>
+                        </button>
+                    )}
+                    {selectedUser && (
+                        <button
+                            onClick={() => setCallData({ type: "outgoing", targetUser: selectedUser, withVideo: true })}
+                            title="Video call"
+                            style={{
+                                marginLeft: 8, background: "rgba(255,255,255,0.15)", color: "#fff",
+                                border: "none", borderRadius: "50%", width: 36, height: 36,
+                                display: "flex", alignItems: "center", justifyContent: "center",
+                                cursor: "pointer",
+                            }}
+                        >
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="#fff">
+                                <path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/>
                             </svg>
                         </button>
                     )}

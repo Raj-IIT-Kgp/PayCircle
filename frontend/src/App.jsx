@@ -12,11 +12,13 @@ import { Update } from "./pages/Update.jsx";
 import Transaction from "./pages/Transaction.jsx";
 import ChatPage from "./pages/ChatPage.jsx";
 import { WebSocketProvider } from "./context/WebSocketContext";
+import { CallProvider } from "./context/CallContext";
 
 function App() {
     return (
         <BrowserRouter>
             <WebSocketProvider>
+                <CallProvider>
                 <Routes>
                     <Route path="/signup" element={<Signup />} />
                     <Route path="/signin" element={<Signin />} />
@@ -27,6 +29,7 @@ function App() {
                     <Route path="/transaction" element={<Transaction />} />
                     <Route path="/chatpage" element={<ChatPage />} />
                 </Routes>
+                </CallProvider>
             </WebSocketProvider>
         </BrowserRouter>
     );

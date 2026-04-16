@@ -145,7 +145,12 @@ function broadcastToUser(userId, data) {
     return deliveredCount > 0;
 }
 
+function getOnlineUserIds() {
+    return [...userSockets.keys()];
+}
+
 module.exports = {
     initWebSocket,
-    broadcastToUser
+    broadcastToUser,
+    getOnlineUserIds
 };
