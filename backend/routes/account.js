@@ -1,96 +1,82 @@
-// backend/routes/account.js
 const express = require('express');
 const { authMiddleware } = require('../middleware');
-const { Account, Transaction, User} = require('../db');
-const { default: mongoose } = require('mongoose');
+const prisma = require('../db');
 
 const router = express.Router();
 
-
 router.get("/balance", authMiddleware, async (req, res) => {
-    const account = await Account.findOne({
-        userId: req.userId
-    });
-    res.json({
-        balance: account.balance
-    })
+    const account = await prisma.account.findUnique({ where: { userId: req.userId } });
+    if (!account) return res.status(404).json({ message: "Account not found" });
+    res.json({ balance: account.balance });
 });
 
 router.post("/transfer", authMiddleware, async (req, res) => {
-    const session = await mongoose.startSession();
-    session.startTransaction();
     const { amount, to } = req.body;
 
-    // Fetch the accounts within the transaction
-    const account = await Account.findOne({ userId: req.userId }).session(session);
-
-    if (!account || account.balance < amount) {
-        await session.abortTransaction();
-        return res.status(400).json({
-            message: "Insufficient balance"
-        });
-    }
     if (amount < 0) {
-        await session.abortTransaction();
-        return res.status(400).json({
-            message: "abe ma**chod kar kya raha hai"
-        });
-    }
-    const toAccount = await Account.findOne({ userId: to }).session(session);
-
-    if (!toAccount) {
-        await session.abortTransaction();
-        return res.status(400).json({
-            message: "Invalid account"
-        });
+        return res.status(400).json({ message: "abe ma**chod kar kya raha hai" });
     }
 
-    // Perform the transfer
-    await Account.updateOne({ userId: req.userId }, { $inc: { balance: -amount } }).session(session);
-    await Account.updateOne({ userId: to }, { $inc: { balance: amount } }).session(session);
+    try {
+        await prisma.$transaction(async (tx) => {
+            const fromAccount = await tx.account.findUnique({ where: { userId: req.userId } });
 
-    const fromUser =await User.findOne({
-        _id : req.userId
-    })
-    const toUser  = await User.findOne({
-        _id : to
-    })
+            if (!fromAccount || Number(fromAccount.balance) < amount) {
+                throw Object.assign(new Error("Insufficient balance"), { status: 400 });
+            }
 
-    const transaction = new Transaction({
-        from : req.userId,
-        to : to,
-        fromFullName : fromUser.firstName + " " + fromUser.lastName,
-        toFullName : toUser.firstName + " " + toUser.lastName,
-        amount : amount,
-        date : Date.now()
-    })
-    await transaction.save()
+            const toAccount = await tx.account.findUnique({ where: { userId: to } });
+            if (!toAccount) {
+                throw Object.assign(new Error("Invalid account"), { status: 400 });
+            }
 
-    // Commit the transaction
-    await session.commitTransaction();
-    res.json({
-        message: "Transfer successful"
-    });
+            await tx.account.update({
+                where: { userId: req.userId },
+                data: { balance: { decrement: amount } }
+            });
+            await tx.account.update({
+                where: { userId: to },
+                data: { balance: { increment: amount } }
+            });
+
+            const [fromUser, toUser] = await Promise.all([
+                tx.user.findUnique({ where: { id: req.userId } }),
+                tx.user.findUnique({ where: { id: to } })
+            ]);
+
+            await tx.transfer.create({
+                data: {
+                    fromUserId: req.userId,
+                    toUserId: to,
+                    fromFullName: `${fromUser.firstName} ${fromUser.lastName}`,
+                    toFullName: `${toUser.firstName} ${toUser.lastName}`,
+                    amount
+                }
+            });
+        }, { isolationLevel: 'Serializable' });
+
+        res.json({ message: "Transfer successful" });
+    } catch (err) {
+        const status = err.status || 500;
+        res.status(status).json({ message: err.message || "Transfer failed" });
+    }
 });
-// backend/routes/account.js
 
 router.get("/transactions", authMiddleware, async (req, res) => {
-    const transactions = await Transaction.find({
-        $or: [
-            { from: req.userId },
-            { to: req.userId }
-        ]
-    })
-        .select('fromFullName toFullName amount date') // select only these fields
-        .sort({ date: -1 }); // sort by date in descending order
-    async function deleteOldTransactions() {
-        const oneWeekAgo = new Date();
-        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+    // Delete transfers older than 7 days
+    await prisma.transfer.deleteMany({
+        where: { date: { lt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } }
+    });
 
-        await Transaction.deleteMany({ date: { $lt: oneWeekAgo } });
-    }
-    await deleteOldTransactions();
-    res.json(transactions);
+    const transfers = await prisma.transfer.findMany({
+        where: {
+            OR: [{ fromUserId: req.userId }, { toUserId: req.userId }]
+        },
+        orderBy: { date: 'desc' },
+        select: { fromFullName: true, toFullName: true, amount: true, date: true }
+    });
 
+    res.json(transfers);
 });
+
 module.exports = router;

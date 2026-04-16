@@ -11,9 +11,9 @@ export const Dashboard = () => {
 
     useEffect(() => {
         const fetchBalance = async () => {
-            const token = localStorage.getItem("token");
+            const token = sessionStorage.getItem("token");
             try {
-                const backendUrl = import.meta.env.VITE_REACT_APP_BACKEND_URL;
+                const backendUrl = import.meta.env.VITE_REACT_APP_BACKEND_URL || "/api/v1";
                 const response = await fetch(`${backendUrl}/account/balance`, {
                     headers: {
                         Authorization: "Bearer " + token
@@ -21,7 +21,7 @@ export const Dashboard = () => {
                 });
                 if (response.status === 200) {
                     const data = await response.json();
-                    setBalance((data.balance).toFixed(2));
+                    setBalance(Number(data.balance).toFixed(2));
                 } else {
                     console.log("Error in fetching balance");
                 }

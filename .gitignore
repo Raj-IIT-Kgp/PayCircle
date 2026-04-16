@@ -1,0 +1,59 @@
+# Dependencies
+node_modules/
+
+# Environment — commit .env.example, never .env
+.env
+.env.*
+!.env.example
+
+# Build artifacts
+dist/
+dist-ssr/
+build/
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE / Editor
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.cursor/
+.cursorrules
+.windsurfrules
+.opencode.json
+
+# Docker named volumes (if ever bind-mounted locally)
+postgres_data/
+
+# Uploaded files — keep the directory, ignore contents
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# Misc
+*.local
+vite.config.js.timestamp-*
+
+# Frontend env (contains backend URL which differs per environment)
+frontend/.env
+
+# AI / Tool Metadata
+GEMINI.md
+AGENTS.md
+CLAUDE.md
+.claude/
+.mcp.json
+.code-review-graph/

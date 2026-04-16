@@ -16,7 +16,7 @@ export const Update = () => {
 
     useEffect(() => {
         const fetchUser = async () => {
-            const token = localStorage.getItem("token");
+            const token = sessionStorage.getItem("token");
             const backendUrl = import.meta.env.VITE_REACT_APP_BACKEND_URL;
             try {
                 const response = await axios.get(`${backendUrl}/user/info`, {
@@ -69,7 +69,7 @@ export const Update = () => {
             alert("Please enter at least one field to update");
             return;
         }
-        const token = localStorage.getItem("token");
+        const token = sessionStorage.getItem("token");
         const backendUrl = import.meta.env.VITE_REACT_APP_BACKEND_URL;
         try {
             const response = await axios.put(

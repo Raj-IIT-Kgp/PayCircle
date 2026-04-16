@@ -15,8 +15,8 @@ import { WebSocketProvider } from "./context/WebSocketContext";
 
 function App() {
     return (
-        <WebSocketProvider>
-            <BrowserRouter>
+        <BrowserRouter>
+            <WebSocketProvider>
                 <Routes>
                     <Route path="/signup" element={<Signup />} />
                     <Route path="/signin" element={<Signin />} />
@@ -27,8 +27,8 @@ function App() {
                     <Route path="/transaction" element={<Transaction />} />
                     <Route path="/chatpage" element={<ChatPage />} />
                 </Routes>
-            </BrowserRouter>
-        </WebSocketProvider>
+            </WebSocketProvider>
+        </BrowserRouter>
     );
 }
 

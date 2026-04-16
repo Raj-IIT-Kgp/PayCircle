@@ -1,0 +1,71 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String  @id @default(uuid())
+  phone        String  @unique
+  password     String
+  firstName    String  @map("first_name")
+  lastName     String  @map("last_name")
+  email        String?
+  profileImage String   @default("") @map("profile_image")
+  lastSeen     DateTime @default(now()) @map("last_seen")
+
+  account           Account?
+  sentTransfers     Transfer[] @relation("FromUser")
+  receivedTransfers Transfer[] @relation("ToUser")
+  sentMessages      Message[]  @relation("FromUser")
+  receivedMessages  Message[]  @relation("ToUser")
+
+  @@map("users")
+}
+
+model Account {
+  id      String  @id @default(uuid())
+  userId  String  @unique @map("user_id")
+  balance Decimal @db.Decimal(14, 2)
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("accounts")
+}
+
+model Transfer {
+  id           String   @id @default(uuid())
+  fromUserId   String   @map("from_user_id")
+  toUserId     String   @map("to_user_id")
+  fromFullName String   @map("from_full_name")
+  toFullName   String   @map("to_full_name")
+  amount       Decimal  @db.Decimal(14, 2)
+  date         DateTime @default(now())
+
+  fromUser User @relation("FromUser", fields: [fromUserId], references: [id])
+  toUser   User @relation("ToUser", fields: [toUserId], references: [id])
+
+  @@map("transactions")
+}
+
+model Message {
+  id         String   @id @default(uuid())
+  fromUserId String   @map("from_user_id")
+  toUserId   String   @map("to_user_id")
+  content    String   @default("")
+  fileUrl    String   @default("") @map("file_url")
+  fileName   String   @default("") @map("file_name")
+  reactions  Json     @default("{}")
+  isDeleted  Boolean  @default(false) @map("is_deleted")
+  deletedFor String[] @default([])    @map("deleted_for")
+  timestamp  DateTime @default(now())
+  read       Boolean  @default(false)
+
+  fromUser User @relation("FromUser", fields: [fromUserId], references: [id])
+  toUser   User @relation("ToUser", fields: [toUserId], references: [id])
+
+  @@map("messages")
+}

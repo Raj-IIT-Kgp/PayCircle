@@ -6,19 +6,24 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "nodemon index.js",
-    "start": "node index.js"
+    "start": "node index.js",
+    "db:push": "prisma db push",
+    "db:studio": "prisma studio",
+    "db:generate": "prisma generate"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@prisma/client": "^5.11.0",
     "cors": "^2.8.5",
     "express": "^4.18.2",
     "jsonwebtoken": "^9.0.2",
-    "mongoose": "^8.2.1",
     "multer": "^2.0.1",
-    "nodemailer": "^7.0.3",
+    "twilio": "^5.3.3",
+    "prisma": "^5.11.0",
     "socket.io": "^4.8.1",
+    "ws": "^8.17.0",
     "zod": "^3.22.4"
   },
   "devDependencies": {

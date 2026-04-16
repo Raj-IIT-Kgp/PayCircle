@@ -1,30 +1,26 @@
 import { useEffect, useState, useRef } from "react";
 import axios from "axios";
-import { useNavigate } from "react-router-dom";
-import { Button } from "./Button";
+import { useNavigate, useLocation } from "react-router-dom";
 
 export const Appbar = () => {
     const [name, setName] = useState("");
     const [profileImage, setProfileImage] = useState("");
     const [menuOpen, setMenuOpen] = useState(false);
     const navigate = useNavigate();
+    const location = useLocation();
     const menuRef = useRef();
+
     useEffect(() => {
         const fetchUser = async () => {
             try {
-                const backendUrl = import.meta.env.VITE_REACT_APP_BACKEND_URL;
-                const token = localStorage.getItem("token");
+                const token = sessionStorage.getItem("token");
+                const backendUrl = import.meta.env.VITE_REACT_APP_BACKEND_URL || "/api/v1";
                 const response = await axios.get(`${backendUrl}/user/info`, {
-                    headers: {
-                        Authorization: "Bearer " + token
-                    }
+                    headers: { Authorization: "Bearer " + token }
                 });
                 if (response.status === 200 && response.data.user) {
                     setName(response.data.user.firstName);
                     setProfileImage(response.data.user.profileImage);
-
-                } else {
-                    console.log("Error in fetching user info");
                 }
             } catch (error) {
                 console.error("Error fetching user info:", error);
@@ -34,132 +30,97 @@ export const Appbar = () => {
     }, []);
 
     useEffect(() => {
-        const handleClickOutside = (event) => {
-            if (menuRef.current && !menuRef.current.contains(event.target)) {
-                setMenuOpen(false);
-            }
+        const handleClickOutside = (e) => {
+            if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false);
         };
-        if (menuOpen) {
-            document.addEventListener("mousedown", handleClickOutside);
-        }
-        return () => {
-            document.removeEventListener("mousedown", handleClickOutside);
-        };
+        if (menuOpen) document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
     }, [menuOpen]);
 
-    const handleLogout = () => {
-        localStorage.removeItem("token");
-        navigate("/signin");
-    };
+    const navLinks = [
+        { label: "Dashboard", path: "/dashboard" },
+        { label: "Messages", path: "/chatpage" },
+        { label: "Transactions", path: "/transaction" },
+    ];
 
-    const handleUpdate = () => {
-        navigate("/update");
-    };
-
-    const appbarStyle = {
-        backgroundColor: '#1a202c',
-        color: 'white',
-        boxShadow: '0 2px 4px 0 rgba(0,0,0,0.2)',
-        padding: '1rem',
-        display: 'flex',
-        alignItems: 'center',
-    };
-
-    const logoStyle = {
-        fontSize: '1.5em',
-        fontWeight: 'bold',
-        marginRight: '2rem'
-    };
-
-    const userInfoStyle = {
-        display: 'flex',
-        alignItems: 'center',
-        gap: '1rem',
-        position: 'relative'
-    };
-
-    const avatarStyle = {
-        width: '40px',
-        height: '40px',
-        borderRadius: '50%',
-        backgroundColor: '#3182ce',
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        fontSize: '1rem',
-        cursor: 'pointer',
-        userSelect: 'none',
-        overflow: 'hidden'
-    };
-
-    const avatarImgStyle = {
-        width: '100%',
-        height: '100%',
-        objectFit: 'cover',
-        borderRadius: '50%'
-    };
-
-    const menuStyle = {
-        position: 'absolute',
-        top: '50px',
-        right: 0,
-        background: 'white',
-        color: '#1a202c',
-        borderRadius: '8px',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-        zIndex: 100,
-        minWidth: '120px',
-        padding: '0.5rem 0'
-    };
-
-    const menuItemStyle = {
-        padding: '0.5rem 1rem',
-        cursor: 'pointer',
-        fontSize: '1rem',
-        border: 'none',
-        background: 'none',
-        width: '100%',
-        textAlign: 'left'
-    };
+    const isActive = (path) => location.pathname === path;
 
     return (
-        <div style={appbarStyle}>
-            <div
-                style={logoStyle}
-                onClick={() => navigate("/dashboard")}
-                className="cursor-pointer select-none"
-            >
-                RajPay
-            </div>
-            <Button
-                onClick={() => navigate("/transaction")}
-                label="Transaction History"
-                className="w-auto min-w-fit"
-            />
-            <Button
-                onClick={() => navigate("/chatpage")}
-                label="Message"
-                className="w-auto min-w-fit"
-                style={{ marginLeft: "1rem" }}
-            />
-            <div style={{ flex: 1 }} />
-            <div style={userInfoStyle} ref={menuRef}>
-                <div
-                    style={avatarStyle}
-                    onClick={() => setMenuOpen((open) => !open)}
+        <nav className="bg-white border-b border-slate-200 sticky top-0 z-40">
+            <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center gap-6">
+                {/* Logo */}
+                <button
+                    onClick={() => navigate("/dashboard")}
+                    className="flex items-center gap-2 font-bold text-lg text-indigo-600 shrink-0"
                 >
-                    {profileImage
-                        ? <img src={profileImage} alt="Profile" style={avatarImgStyle} />
-                        : name.charAt(0)
-                    }
-                </div>
-                {menuOpen && (
-                    <div style={menuStyle}>
-                        <button style={menuItemStyle} onClick={handleUpdate}>Update</button>
-                        <button style={menuItemStyle} onClick={handleLogout}>Logout</button>
+                    <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white text-sm font-bold">
+                        P
                     </div>
-                )}
+                    PayCircle
+                </button>
+
+                {/* Nav links */}
+                <div className="hidden sm:flex items-center gap-1 flex-1">
+                    {navLinks.map(link => (
+                        <button
+                            key={link.path}
+                            onClick={() => navigate(link.path)}
+                            className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                isActive(link.path)
+                                    ? "bg-indigo-50 text-indigo-700"
+                                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                            }`}
+                        >
+                            {link.label}
+                        </button>
+                    ))}
+                </div>
+
+                <div className="flex-1 sm:hidden" />
+
+                {/* Profile */}
+                <div className="relative" ref={menuRef}>
+                    <button
+                        onClick={() => setMenuOpen(o => !o)}
+                        className="flex items-center gap-2 focus:outline-none"
+                    >
+                        <div className="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-white text-sm font-bold overflow-hidden ring-2 ring-indigo-100">
+                            {profileImage
+                                ? <img src={profileImage} alt="Profile" className="w-full h-full object-cover" />
+                                : (name.charAt(0) || "U").toUpperCase()
+                            }
+                        </div>
+                        <span className="hidden sm:block text-sm font-medium text-slate-700">{name}</span>
+                        <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </button>
+
+                    {menuOpen && (
+                        <div className="absolute right-0 top-12 w-44 bg-white rounded-xl shadow-lg border border-slate-100 py-1 z-50">
+                            <button
+                                onClick={() => { setMenuOpen(false); navigate("/update"); }}
+                                className="w-full text-left px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+                            >
+                                <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                </svg>
+                                Edit Profile
+                            </button>
+                            <div className="border-t border-slate-100 my-1" />
+                            <button
+                                onClick={() => { sessionStorage.removeItem("token"); navigate("/signin"); }}
+                                className="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                            >
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                                </svg>
+                                Sign Out
+                            </button>
+                        </div>
+                    )}
+                </div>
             </div>
-        </div>
+        </nav>
     );
 };

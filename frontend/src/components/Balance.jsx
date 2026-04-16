@@ -1,11 +1,11 @@
-
 export const Balance = ({ value }) => {
     return (
-        <div className="flex items-center">
-            <div className="font-bold text-lg mr-2">Your Balance:</div>
-            <div className="font-semibold text-lg text-blue-600">
-                Rs {value}
-            </div>
+        <div className="bg-gradient-to-br from-indigo-600 to-violet-700 rounded-2xl p-6 text-white">
+            <p className="text-sm font-medium text-indigo-200 mb-1">Available Balance</p>
+            <p className="text-4xl font-bold tracking-tight">
+                ₹{Number(value).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+            </p>
+            <p className="text-xs text-indigo-300 mt-2">PayCircle Wallet</p>
         </div>
     );
 };
