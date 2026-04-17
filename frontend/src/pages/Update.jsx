@@ -100,7 +100,7 @@ export const Update = () => {
                             id="firstName"
                             value={firstName}
                             onChange={e => setFirstName(e.target.value)}
-                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring focus:ring-emerald-200 focus:ring-opacity-50"
                         />
                     </div>
                     <div>
@@ -110,7 +110,7 @@ export const Update = () => {
                             id="lastName"
                             value={lastName}
                             onChange={e => setLastName(e.target.value)}
-                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring focus:ring-emerald-200 focus:ring-opacity-50"
                         />
                     </div>
                     <div>
@@ -120,7 +120,7 @@ export const Update = () => {
                             id="password"
                             value={password}
                             onChange={e => setPassword(e.target.value)}
-                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring focus:ring-emerald-200 focus:ring-opacity-50"
                         />
                     </div>
                     <div>
@@ -151,7 +151,7 @@ export const Update = () => {
                     </div>
                     <button
                         type="submit"
-                        className="w-full px-3 py-2 text-white bg-indigo-600 rounded hover:bg-indigo-500 focus:outline-none focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                        className="w-full px-3 py-2 text-white bg-emerald-600 rounded hover:bg-emerald-500 focus:outline-none focus:ring focus:ring-emerald-200 focus:ring-opacity-50"
                     >
                         Update
                     </button>

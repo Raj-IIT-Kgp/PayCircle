@@ -25,10 +25,10 @@ function Transactions() {
     }, []);
 
     return (
-        <div className="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
+        <div className="bg-gradient-to-br from-blue-50 to-emerald-100 min-h-screen">
             <Appbar />
             <div className="container mx-auto mt-10 px-4">
-                <h1 className="text-3xl font-bold text-center text-indigo-700 mb-10 drop-shadow">
+                <h1 className="text-3xl font-bold text-center text-emerald-700 mb-10 drop-shadow">
                     Transactions
                 </h1>
                 <div className="bg-white shadow-lg rounded-xl overflow-hidden">
@@ -57,7 +57,7 @@ function Transactions() {
                     <div className="hidden sm:block overflow-x-auto">
                         <table className="w-full table-auto">
                             <thead>
-                                <tr className="bg-indigo-50 text-indigo-600 uppercase text-sm">
+                                <tr className="bg-emerald-50 text-emerald-600 uppercase text-sm">
                                     <th className="py-3 px-4 text-left">From</th>
                                     <th className="py-3 px-4 text-left">To</th>
                                     <th className="py-3 px-4 text-center">Amount</th>
@@ -82,7 +82,7 @@ function Transactions() {
                     </div>
                     <div className="text-center py-4">
                         <button onClick={() => navigate("/dashboard")}
-                                className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-6 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-50">
+                                className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2 px-6 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-opacity-50">
                             Go to Dashboard
                         </button>
                     </div>

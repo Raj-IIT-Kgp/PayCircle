@@ -52,11 +52,9 @@ export const Appbar = () => {
                 {/* Logo */}
                 <button
                     onClick={() => navigate("/dashboard")}
-                    className="flex items-center gap-2 font-bold text-lg text-indigo-600 shrink-0"
+                    className="flex items-center gap-2 font-bold text-lg text-emerald-600 shrink-0"
                 >
-                    <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white text-sm font-bold">
-                        P
-                    </div>
+                    <img src="/vite.svg" alt="PayCircle Logo" className="w-9 h-9" />
                     PayCircle
                 </button>
 
@@ -68,7 +66,7 @@ export const Appbar = () => {
                             onClick={() => navigate(link.path)}
                             className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                                 isActive(link.path)
-                                    ? "bg-indigo-50 text-indigo-700"
+                                    ? "bg-emerald-50 text-emerald-700"
                                     : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
                             }`}
                         >
@@ -101,7 +99,7 @@ export const Appbar = () => {
                         onClick={() => setMenuOpen(o => !o)}
                         className="flex items-center gap-2 focus:outline-none"
                     >
-                        <div className="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-white text-sm font-bold overflow-hidden ring-2 ring-indigo-100">
+                        <div className="w-9 h-9 rounded-full bg-emerald-600 flex items-center justify-center text-white text-sm font-bold overflow-hidden ring-2 ring-emerald-100">
                             {profileImage
                                 ? <img src={profileImage} alt="Profile" className="w-full h-full object-cover" />
                                 : (name.charAt(0) || "U").toUpperCase()
@@ -148,7 +146,7 @@ export const Appbar = () => {
                             onClick={() => { navigate(link.path); setMobileNavOpen(false); }}
                             className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                                 isActive(link.path)
-                                    ? "bg-indigo-50 text-indigo-700"
+                                    ? "bg-emerald-50 text-emerald-700"
                                     : "text-slate-600 hover:bg-slate-100"
                             }`}
                         >

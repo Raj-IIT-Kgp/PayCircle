@@ -382,10 +382,16 @@ export default function ChatPage() {
 
     // ── Load own E2E private key from session cache ────────────────────────────
     useEffect(() => {
-        if (!myUser) return;
-        const pk = getCachedPrivateKey(myUser._id);
-        if (pk) setMyPrivateKey(pk);
-    }, [myUser]);
+        if (!myUser || myPrivateKey || !token) return;
+        // Lazy init for users who are already logged in but missing keys (production update case)
+        const { initE2ESessionKey } = require("../utils/e2eCrypto");
+        initE2ESessionKey(myUser._id, token, API_URL)
+            .then(() => {
+                const pk = getCachedPrivateKey(myUser._id);
+                if (pk) setMyPrivateKey(pk);
+            })
+            .catch(err => console.error("Auto key init failed:", err));
+    }, [myUser, myPrivateKey, token]);
 
     // ── Fetch selected user's public key ──────────────────────────────────────
     useEffect(() => {
@@ -1066,15 +1072,19 @@ export default function ChatPage() {
             );
         }
 
+        const isEncrypted = msg.content?.startsWith("e2e:");
+
         return (
             <div style={{
                 display: "inline-block", padding: "10px 16px", borderRadius: 16,
                 background: isMe ? C.myBubble : "#fff",
-                color: "#111", fontSize: 15,
+                color: isEncrypted ? "#888" : "#111", 
+                fontSize: isEncrypted ? 13 : 15,
+                fontStyle: isEncrypted ? "italic" : "normal",
                 maxWidth: 320, wordBreak: "break-word",
                 boxShadow: "0 1px 2px rgba(0,0,0,0.07)",
             }}>
-                {msg.content}
+                {isEncrypted ? "🔒 Encrypted Message" : msg.content}
             </div>
         );
     };

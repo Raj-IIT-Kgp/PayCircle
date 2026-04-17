@@ -14,8 +14,8 @@ export function Start() {
                 <h1 className="text-3xl font-bold">Welcome to the Money Sharing App</h1>
                 <p className="text-lg text-gray-700">A simple and secure way to share money with your friends and family.</p>
                 <p className="text-gray-600">Get started today and experience hassle-free money transfers!</p>
-                <Button onClick={change} label="Get Started" className="w-full px-4 py-2 text-white bg-indigo-600 rounded-md hover:bg-indigo-500 focus:outline-none focus:ring focus:ring-indigo-200 focus:ring-opacity-50" />
-                <p className="text-sm text-gray-500 mt-2">Already have an account? <span className="text-indigo-600 cursor-pointer" onClick={() => navigate("/signin")}>Log in here</span></p>
+                <Button onClick={change} label="Get Started" className="w-full px-4 py-2 text-white bg-emerald-600 rounded-md hover:bg-emerald-500 focus:outline-none focus:ring focus:ring-emerald-200 focus:ring-opacity-50" />
+                <p className="text-sm text-gray-500 mt-2">Already have an account? <span className="text-emerald-600 cursor-pointer" onClick={() => navigate("/signin")}>Log in here</span></p>
             </div>
         </div>
     );

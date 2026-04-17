@@ -3,7 +3,7 @@ import axios from "axios";
 import { useNavigate } from "react-router-dom";
 
 const AVATAR_COLORS = [
-    "bg-violet-500", "bg-indigo-500", "bg-sky-500",
+    "bg-violet-500", "bg-emerald-500", "bg-sky-500",
     "bg-emerald-500", "bg-amber-500", "bg-rose-500",
 ];
 
@@ -44,7 +44,7 @@ export const Users = () => {
                     onChange={(e) => setFilter(e.target.value)}
                     type="text"
                     placeholder="Search by name or phone..."
-                    className="w-full pl-9 pr-4 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all"
+                    className="w-full pl-9 pr-4 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all"
                 />
             </div>
 
@@ -81,7 +81,7 @@ function UserRow({ user }) {
             <div className="flex gap-2 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                 <button
                     onClick={() => navigate(`/chatpage?id=${user._id}`)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition-colors"
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors"
                 >
                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />

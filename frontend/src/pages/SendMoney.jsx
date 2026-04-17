@@ -10,11 +10,11 @@ export const SendMoney = () => {
     const navigate = useNavigate();
 
     return (
-        <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 px-4 py-8">
+        <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-blue-50 to-emerald-100 px-4 py-8">
             <div className="max-w-md w-full p-6 bg-white rounded-xl shadow-lg">
-                <h2 className="text-3xl font-bold text-center mb-6 text-indigo-700">Send Money</h2>
+                <h2 className="text-3xl font-bold text-center mb-6 text-emerald-700">Send Money</h2>
                 <div className="flex items-center space-x-4 mb-6">
-                    <div className="w-12 h-12 rounded-full bg-indigo-500 flex items-center justify-center">
+                    <div className="w-12 h-12 rounded-full bg-emerald-500 flex items-center justify-center">
                         <span className="text-2xl text-white">{name[0].toUpperCase()}</span>
                     </div>
                     <h3 className="text-2xl font-semibold">{name}</h3>
@@ -49,7 +49,7 @@ export const SendMoney = () => {
                                 }
                             }
                         }
-                        className="w-full h-10 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring focus:ring-indigo-500"
+                        className="w-full h-10 px-4 py-2 text-sm font-medium text-white bg-emerald-600 rounded-md hover:bg-emerald-700 focus:outline-none focus:ring focus:ring-emerald-500"
                     >
                         Initiate Transfer
                     </button>

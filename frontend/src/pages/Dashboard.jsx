@@ -37,19 +37,19 @@ export const Dashboard = () => {
     };
 
     return (
-        <div className="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
+        <div className="bg-gradient-to-br from-blue-50 to-emerald-100 min-h-screen">
             <Appbar />
             <div className="container mx-auto mt-10 px-4">
-                <h1 className="text-3xl font-bold text-center text-indigo-700 mb-10 drop-shadow">
+                <h1 className="text-3xl font-bold text-center text-emerald-700 mb-10 drop-shadow">
                     Dashboard
                 </h1>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div className="bg-white shadow-lg rounded-xl p-8 transition-transform hover:scale-105">
-                        <h2 className="text-xl font-semibold mb-6 text-indigo-600">Account Balance</h2>
+                        <h2 className="text-xl font-semibold mb-6 text-emerald-600">Account Balance</h2>
                         <Balance value={balance} />
                     </div>
                     <div className="bg-white shadow-lg rounded-xl p-8 transition-transform hover:scale-105">
-                        <h2 className="text-xl font-semibold mb-6 text-indigo-600">Users</h2>
+                        <h2 className="text-xl font-semibold mb-6 text-emerald-600">Users</h2>
                         <Users />
                     </div>
                 </div>
