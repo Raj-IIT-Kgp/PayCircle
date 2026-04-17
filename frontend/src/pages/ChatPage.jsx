@@ -4,6 +4,13 @@ import { useCall } from "../context/CallContext";
 import { useLocation, useNavigate } from "react-router-dom";
 import Picker from "@emoji-mart/react";
 import data from "@emoji-mart/data";
+import {
+    getCachedPrivateKey,
+    encryptMessage,
+    decryptMessage,
+    encryptFileBytes,
+    decryptFileBytes,
+} from "../utils/e2eCrypto";
 
 const API_URL = import.meta.env.VITE_REACT_APP_BACKEND_URL || "/api/v1";
 
@@ -198,6 +205,73 @@ function PayModal({ recipient, onClose, onSuccess, token }) {
     );
 }
 
+// ── Encrypted file display ─────────────────────────────────────────────────────
+function EncryptedFileDisplay({ msg, senderPublicKey, myPrivateKey, isMe }) {
+    const [objectUrl, setObjectUrl] = useState(null);
+    const [status, setStatus] = useState("decrypting");
+
+    const originalName = (msg.fileName || "file").replace(/\.enc$/, "");
+    const isAudio = /\.(webm|mp3|wav|ogg|m4a)$/i.test(originalName);
+    const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(originalName);
+
+    useEffect(() => {
+        if (!senderPublicKey || !myPrivateKey) { setStatus("no-keys"); return; }
+        let revoke = null;
+        (async () => {
+            try {
+                const resp = await fetch(msg.fileUrl);
+                const buf = new Uint8Array(await resp.arrayBuffer());
+                const plain = await decryptFileBytes(buf, senderPublicKey, myPrivateKey);
+                const mime = isAudio ? "audio/webm" : isImage ? "image/jpeg" : "application/octet-stream";
+                const url = URL.createObjectURL(new Blob([plain], { type: mime }));
+                revoke = url;
+                setObjectUrl(url);
+                setStatus("ready");
+            } catch {
+                setStatus("error");
+            }
+        })();
+        return () => { if (revoke) URL.revokeObjectURL(revoke); };
+    }, [msg.fileUrl, senderPublicKey, myPrivateKey]);
+
+    const bubbleStyle = {
+        background: isMe ? C.myBubble : "#fff",
+        padding: "8px 12px", borderRadius: 12,
+        boxShadow: "0 1px 2px rgba(0,0,0,0.07)",
+    };
+
+    if (status !== "ready") {
+        return (
+            <div style={{ ...bubbleStyle, color: "#888", fontSize: 13 }}>
+                {status === "decrypting" ? "🔓 Decrypting…" : status === "error" ? "🔒 Encrypted file" : "🔒 Keys unavailable"}
+            </div>
+        );
+    }
+
+    if (isAudio) {
+        return (
+            <div style={{ ...bubbleStyle, minWidth: 200 }}>
+                <audio src={objectUrl} controls preload="metadata" style={{ height: 35, width: 220 }} />
+            </div>
+        );
+    }
+    if (isImage) {
+        return (
+            <div style={{ ...bubbleStyle, padding: 4, maxWidth: 300 }}>
+                <img src={objectUrl} alt="photo" style={{ width: "100%", borderRadius: 8, display: "block", cursor: "pointer", maxHeight: 400, objectFit: "cover" }}
+                    onClick={() => window.open(objectUrl, "_blank")} />
+            </div>
+        );
+    }
+    return (
+        <a href={objectUrl} download={originalName} style={{
+            display: "inline-block", ...bubbleStyle,
+            color: C.primaryDark, textDecoration: "underline",
+            maxWidth: 320, wordBreak: "break-all",
+        }}>📎 {originalName}</a>
+    );
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 export default function ChatPage() {
     const { ws, wsVersion } = useWebSocket();
@@ -232,6 +306,16 @@ export default function ChatPage() {
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
     const [showSidebar, setShowSidebar] = useState(true);
     const typingTimeoutRef = useRef({});
+
+    // E2E encryption state
+    const [myPrivateKey, setMyPrivateKey] = useState(null);
+    const [selectedUserPublicKey, setSelectedUserPublicKey] = useState(null);
+    const [decryptedMessages, setDecryptedMessages] = useState([]);
+
+    // AI assistant state
+    const [showAiInput, setShowAiInput] = useState(false);
+    const [aiInput, setAiInput] = useState("");
+    const [aiLoading, setAiLoading] = useState(false);
 
     const fileInputRef = useRef(null);
     const messagesEndRef = useRef(null);
@@ -295,6 +379,42 @@ export default function ChatPage() {
     useEffect(() => {
         if (selectedUserId) navigate(`/chatpage?id=${selectedUserId}`, { replace: true });
     }, [selectedUserId, navigate]);
+
+    // ── Load own E2E private key from session cache ────────────────────────────
+    useEffect(() => {
+        if (!myUser) return;
+        const pk = getCachedPrivateKey(myUser._id);
+        if (pk) setMyPrivateKey(pk);
+    }, [myUser]);
+
+    // ── Fetch selected user's public key ──────────────────────────────────────
+    useEffect(() => {
+        if (!selectedUserId || !token) { setSelectedUserPublicKey(null); return; }
+        fetch(`${API_URL}/user/keys/${selectedUserId}`, { headers: { Authorization: `Bearer ${token}` } })
+            .then(r => r.json())
+            .then(d => setSelectedUserPublicKey(d.publicKey || null))
+            .catch(() => setSelectedUserPublicKey(null));
+    }, [selectedUserId, token]);
+
+    // ── Decrypt messages whenever messages or keys change ─────────────────────
+    useEffect(() => {
+        if (!myPrivateKey || !selectedUserPublicKey) {
+            setDecryptedMessages(messages);
+            return;
+        }
+        let cancelled = false;
+        (async () => {
+            const result = await Promise.all(messages.map(async (msg) => {
+                // Use pre-computed plaintext for optimistic messages to avoid re-decryption
+                if (msg._plaintext !== undefined) return { ...msg, content: msg._plaintext };
+                if (msg.isDeleted || !msg.content?.startsWith("e2e:")) return msg;
+                const content = await decryptMessage(msg.content, selectedUserPublicKey, myPrivateKey);
+                return { ...msg, content };
+            }));
+            if (!cancelled) setDecryptedMessages(result);
+        })();
+        return () => { cancelled = true; };
+    }, [messages, myPrivateKey, selectedUserPublicKey]);
 
     // ── Fetch conversation list ────────────────────────────────────────────────
     useEffect(() => {
@@ -525,17 +645,24 @@ export default function ChatPage() {
     }, [ws, wsVersion, selectedUserId, myUser, token]);
 
     // ── Send text message ──────────────────────────────────────────────────────
-    const sendMessage = () => {
+    const sendMessage = async () => {
         if (!input.trim() || !selectedUserId || !myUser) return;
-        const content = input.trim();
+        const plaintext = input.trim();
         setInput("");
+
+        // Encrypt if keys are available, otherwise send plaintext as fallback
+        let content = plaintext;
+        if (myPrivateKey && selectedUserPublicKey) {
+            content = await encryptMessage(plaintext, selectedUserPublicKey, myPrivateKey);
+        }
+
+        const optimisticId = `tmp-${Date.now()}`;
         const optimistic = {
-            _id: `tmp-${Date.now()}`, from: myUser._id, to: selectedUserId,
-            content, timestamp: new Date().toISOString(), read: false,
+            _id: optimisticId, from: myUser._id, to: selectedUserId,
+            content, _plaintext: plaintext, timestamp: new Date().toISOString(), read: false,
         };
         setMessages(prev => [...prev, optimistic]);
-        // Backend saves and pushes real message (with _id) to both sides via WS.
-        // We also update the optimistic entry here so ticks work immediately.
+
         fetch(`${API_URL}/message/send`, {
             method: "POST",
             headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -543,21 +670,24 @@ export default function ChatPage() {
         }).then(r => r.json()).then(d => {
             if (d.msg) {
                 setMessages(prev => prev.map(m =>
-                    m._id === optimistic._id ? { ...d.msg, from: myUser._id } : m
+                    m._id === optimisticId ? { ...d.msg, from: myUser._id, _plaintext: plaintext } : m
                 ));
             }
         }).catch(() => {});
-        // NOTE: No WS send here — the backend REST route pushes the saved message
-        // (with a real _id) to the recipient via broadcastToUser.
     };
 
     // ── Payment success callback ───────────────────────────────────────────────
-    const handlePaymentSuccess = (amount) => {
+    const handlePaymentSuccess = async (amount) => {
         setShowPayModal(false);
-        const content = `__PAYMENT__:${amount}`;
+        const plaintext = `__PAYMENT__:${amount}`;
+        let content = plaintext;
+        if (myPrivateKey && selectedUserPublicKey) {
+            content = await encryptMessage(plaintext, selectedUserPublicKey, myPrivateKey);
+        }
+        const optimisticId = `tmp-pay-${Date.now()}`;
         const optimistic = {
-            _id: `tmp-pay-${Date.now()}`, from: myUser._id, to: selectedUserId,
-            content, timestamp: new Date().toISOString(), read: false,
+            _id: optimisticId, from: myUser._id, to: selectedUserId,
+            content, _plaintext: plaintext, timestamp: new Date().toISOString(), read: false,
         };
         setMessages(prev => [...prev, optimistic]);
         fetch(`${API_URL}/message/send`, {
@@ -567,7 +697,7 @@ export default function ChatPage() {
         }).then(r => r.json()).then(d => {
             if (d.msg) {
                 setMessages(prev => prev.map(m =>
-                    m._id === optimistic._id ? { ...d.msg, from: myUser._id } : m
+                    m._id === optimisticId ? { ...d.msg, from: myUser._id, _plaintext: plaintext } : m
                 ));
             }
         }).catch(() => {});
@@ -577,17 +707,23 @@ export default function ChatPage() {
     const sendFile = async (e) => {
         const file = e.target.files[0];
         if (!file || !selectedUserId || !myUser) return;
+
         const formData = new FormData();
         formData.append("to", selectedUserId);
-        formData.append("file", file);
+
+        if (myPrivateKey && selectedUserPublicKey) {
+            const bytes = new Uint8Array(await file.arrayBuffer());
+            const encrypted = await encryptFileBytes(bytes, selectedUserPublicKey, myPrivateKey);
+            const encFile = new File([encrypted], file.name + ".enc", { type: "application/octet-stream" });
+            formData.append("file", encFile);
+        } else {
+            formData.append("file", file);
+        }
+
         try {
-            const res = await fetch(`${API_URL}/message/send-file`, {
+            await fetch(`${API_URL}/message/send-file`, {
                 method: "POST", headers: { Authorization: `Bearer ${token}` }, body: formData,
             });
-            const d = await res.json();
-            if (d.msg) {
-                // Rely on WebSocket broadcast to update UI (prevents duplicates)
-            }
         } catch { /* ignore */ } finally {
             fileInputRef.current.value = "";
         }
@@ -681,7 +817,16 @@ export default function ChatPage() {
     const uploadVoiceMessage = async (file) => {
         const formData = new FormData();
         formData.append("to", selectedUserId);
-        formData.append("file", file);
+
+        if (myPrivateKey && selectedUserPublicKey) {
+            const bytes = new Uint8Array(await file.arrayBuffer());
+            const encrypted = await encryptFileBytes(bytes, selectedUserPublicKey, myPrivateKey);
+            const encFile = new File([encrypted], file.name + ".enc", { type: "application/octet-stream" });
+            formData.append("file", encFile);
+        } else {
+            formData.append("file", file);
+        }
+
         try {
             await fetch(`${API_URL}/message/send-file`, {
                 method: "POST", headers: { Authorization: `Bearer ${token}` }, body: formData,
@@ -695,6 +840,72 @@ export default function ChatPage() {
         const mins = Math.floor(s / 60);
         const secs = s % 60;
         return `${mins}:${secs.toString().padStart(2, "0")}`;
+    };
+
+    // ── AI assistant ───────────────────────────────────────────────────────────
+    const sendAiMessage = async () => {
+        if (!aiInput.trim() || !selectedUserId || !myUser || aiLoading) return;
+        const userText = aiInput.trim();
+        setAiInput("");
+        setAiLoading(true);
+
+        // Show user's AI query as a special message
+        const userAiMsg = {
+            _id: `ai-q-${Date.now()}`, from: myUser._id, to: selectedUserId,
+            content: userText, timestamp: new Date().toISOString(),
+            read: false, isAiQuery: true,
+        };
+        setMessages(prev => [...prev, userAiMsg]);
+
+        try {
+            const res = await fetch(`${API_URL}/ai/chat`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                body: JSON.stringify({
+                    message: userText,
+                    recipientId: selectedUserId,
+                    chatHistory: messages.slice(-30).map(m => ({
+                        from: m.from,
+                        content: decryptedMessages.find(d => d._id === m._id)?.content || m.content
+                    }))
+                }),
+            });
+            const data = await res.json();
+
+            // Add AI reply bubble
+            const aiReplyMsg = {
+                _id: `ai-r-${Date.now()}`, from: "ai", to: myUser._id,
+                content: data.reply || "Sorry, I couldn't process that.",
+                timestamp: new Date().toISOString(), read: true, isAiReply: true,
+            };
+            setMessages(prev => [...prev, aiReplyMsg]);
+
+            // If AI executed a payment, also send a payment message in chat
+            if (data.actions?.length) {
+                for (const action of data.actions) {
+                    if (action.type === "payment") {
+                        const payContent = `__PAYMENT__:${action.amount}`;
+                        let encContent = payContent;
+                        if (myPrivateKey && selectedUserPublicKey) {
+                            encContent = await encryptMessage(payContent, selectedUserPublicKey, myPrivateKey);
+                        }
+                        await fetch(`${API_URL}/message/send`, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                            body: JSON.stringify({ to: selectedUserId, content: encContent }),
+                        });
+                    }
+                }
+            }
+        } catch {
+            setMessages(prev => [...prev, {
+                _id: `ai-err-${Date.now()}`, from: "ai", to: myUser._id,
+                content: "AI service unavailable. Please try again.",
+                timestamp: new Date().toISOString(), isAiReply: true,
+            }]);
+        } finally {
+            setAiLoading(false);
+        }
     };
 
     const handleTyping = () => {
@@ -726,6 +937,42 @@ export default function ChatPage() {
     const selectedUser = convoUsers.find(u => u._id === selectedUserId);
     // ── Message bubble renderer ────────────────────────────────────────────────
     const renderMessageContent = (msg, isMe) => {
+        // AI query bubble (user's question to AI)
+        if (msg.isAiQuery) {
+            return (
+                <div style={{
+                    display: "inline-flex", alignItems: "center", gap: 8,
+                    background: "linear-gradient(135deg, #6366f1, #8b5cf6)",
+                    color: "#fff", padding: "10px 16px", borderRadius: 16,
+                    fontSize: 14, maxWidth: 320, wordBreak: "break-word",
+                    boxShadow: "0 2px 8px rgba(99,102,241,0.4)",
+                }}>
+                    <span style={{ fontSize: 16 }}>✨</span>
+                    <span>{msg.content}</span>
+                </div>
+            );
+        }
+
+        // AI reply bubble
+        if (msg.isAiReply) {
+            return (
+                <div style={{
+                    display: "inline-block",
+                    background: "linear-gradient(135deg, #f0f4ff, #e8f0fe)",
+                    border: "1.5px solid #c7d7fd",
+                    color: "#1e1b4b", padding: "12px 16px", borderRadius: 16,
+                    fontSize: 14, maxWidth: 340, wordBreak: "break-word",
+                    boxShadow: "0 2px 8px rgba(99,102,241,0.15)",
+                }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+                        <span style={{ fontSize: 16 }}>🤖</span>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: "#6366f1", textTransform: "uppercase", letterSpacing: 0.5 }}>PayCircle AI</span>
+                    </div>
+                    <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.5 }}>{msg.content}</div>
+                </div>
+            );
+        }
+
         if (msg.isDeleted) {
             return (
                 <div style={{
@@ -746,6 +993,17 @@ export default function ChatPage() {
         }
 
         if (msg.fileUrl) {
+            // Encrypted file — decrypt and display using EncryptedFileDisplay
+            if (msg.fileUrl.endsWith(".enc")) {
+                return (
+                    <EncryptedFileDisplay
+                        msg={msg} isMe={isMe}
+                        senderPublicKey={selectedUserPublicKey}
+                        myPrivateKey={myPrivateKey}
+                    />
+                );
+            }
+
             const isAudio = msg.fileUrl.match(/\.(webm|mp3|wav|ogg|m4a)$/i);
             const isImage = msg.fileUrl.match(/\.(jpg|jpeg|png|gif|webp)$/i);
             
@@ -824,6 +1082,18 @@ export default function ChatPage() {
     const renderMessage = (msg, i) => {
         const isMe = myUser && msg.from === myUser._id;
         const QUICK_EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "🙏", "😋"];
+
+        // AI messages render simply — no ticks, reactions, or dropdown
+        if (msg.isAiQuery || msg.isAiReply) {
+            return (
+                <div key={msg._id || i} style={{ textAlign: msg.isAiReply ? "left" : "right", margin: "6px 24px" }}>
+                    {renderMessageContent(msg, msg.isAiQuery)}
+                    <div style={{ fontSize: 10, color: "#aaa", marginTop: 3, textAlign: msg.isAiReply ? "left" : "right" }}>
+                        {formatTime(msg.timestamp)}
+                    </div>
+                </div>
+            );
+        }
 
         return (
             <div key={msg._id || i} 
@@ -1213,8 +1483,13 @@ export default function ChatPage() {
                             </div>
                             <div style={{ flex: 1, minWidth: 0 }}>
                                 <div style={{ fontSize: 16, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{selectedUser.firstName} {selectedUser.lastName}</div>
-                                <div style={{ fontSize: 11, color: typingMap[selectedUserId] ? "#bef264" : "#e0e7ff", opacity: 0.9 }}>
+                                <div style={{ fontSize: 11, color: typingMap[selectedUserId] ? "#bef264" : "#e0e7ff", opacity: 0.9, display: "flex", alignItems: "center", gap: 4 }}>
                                     {typingMap[selectedUserId] ? "typing..." : (presenceMap[selectedUserId]?.status === "ONLINE" ? "Online" : "")}
+                                    {myPrivateKey && selectedUserPublicKey && (
+                                        <span title="End-to-end encrypted" style={{ marginLeft: 4, fontSize: 10, background: "rgba(255,255,255,0.2)", padding: "1px 5px", borderRadius: 6 }}>
+                                            🔒 E2E Encrypted
+                                        </span>
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -1288,7 +1563,7 @@ export default function ChatPage() {
                         </div>
                     )}
 
-                    {messages.map((msg, i) => renderMessage(msg, i))}
+                    {decryptedMessages.map((msg, i) => renderMessage(msg, i))}
                     <div ref={messagesEndRef} />
                 </div>
 
@@ -1316,6 +1591,49 @@ export default function ChatPage() {
                 )}
 
                 {/* ── Input bar ──────────────────────────────────────────────── */}
+                {/* ── AI Assistant Panel ──────────────────────────────────── */}
+                {selectedUser && showAiInput && (
+                    <div style={{
+                        padding: "10px 16px", borderTop: "1px solid #c7d7fd",
+                        background: "linear-gradient(135deg, #f5f3ff, #ede9fe)",
+                        display: "flex", alignItems: "center", gap: 8, flexShrink: 0,
+                    }}>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1-8.313-12.454z"/>
+                            <path d="M12 3v2M12 19v2M3 12h2M19 12h2"/>
+                        </svg>
+                        <input
+                            value={aiInput}
+                            onChange={e => setAiInput(e.target.value)}
+                            onKeyDown={e => e.key === "Enter" && sendAiMessage()}
+                            placeholder={'Ask AI — "What\'s my balance?", "Pay ₹200", "Summarize chat"…'}
+                            disabled={aiLoading}
+                            autoFocus
+                            style={{
+                                flex: 1, padding: "10px 16px", borderRadius: 24,
+                                border: "1.5px solid #c4b5fd", fontSize: 14, outline: "none",
+                                background: "#fff", color: "#1e1b4b",
+                            }}
+                        />
+                        <button onClick={sendAiMessage} disabled={aiLoading || !aiInput.trim()} style={{
+                            background: aiLoading ? "#aaa" : "linear-gradient(135deg,#6366f1,#8b5cf6)",
+                            color: "#fff", border: "none", borderRadius: "50%",
+                            width: 40, height: 40, cursor: aiLoading ? "not-allowed" : "pointer",
+                            display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                        }}>
+                            {aiLoading ? (
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ animation: "spin 1s linear infinite" }}>
+                                    <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+                                </svg>
+                            ) : (
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ transform: "rotate(45deg)", marginLeft: "-2px" }}>
+                                    <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                                </svg>
+                            )}
+                        </button>
+                    </div>
+                )}
+
                 {selectedUser && (
                     <div style={{
                         padding: "10px 16px", borderTop: "1px solid #d9d9d9",
@@ -1323,10 +1641,28 @@ export default function ChatPage() {
                         display: "flex", alignItems: "center", gap: 8,
                         position: "relative", flexShrink: 0,
                     }}>
+                        <button onClick={() => { setShowAiInput(v => !v); setShowEmoji(false); }} title="Ask AI" style={{
+                            background: showAiInput ? "linear-gradient(135deg,#6366f1,#8b5cf6)" : "none",
+                            border: "none", cursor: "pointer", padding: "4px 6px",
+                            borderRadius: 8, color: showAiInput ? "#fff" : "#6366f1",
+                            fontWeight: 700, transition: "all 0.2s",
+                            display: "flex", alignItems: "center", justifyContent: "center"
+                        }}>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/>
+                                <path d="M5 3v4M3 5h4M21 17v4M19 19h4"/>
+                            </svg>
+                        </button>
+
                         <button onClick={() => setShowEmoji(!showEmoji)} style={{
-                            background: "none", border: "none", fontSize: 22,
+                            background: "none", border: "none",
                             cursor: "pointer", padding: "4px", color: "#666",
-                        }}>😊</button>
+                            display: "flex", alignItems: "center", justifyContent: "center"
+                        }}>
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/>
+                            </svg>
+                        </button>
 
                         {showEmoji && (
                             <div style={{ position: "absolute", bottom: 60, left: 0, zIndex: 100 }}>
@@ -1338,17 +1674,27 @@ export default function ChatPage() {
                         )}
 
                         <button onClick={() => fileInputRef.current.click()} style={{
-                            background: "none", border: "none", fontSize: 22,
+                            background: "none", border: "none",
                             cursor: "pointer", padding: "4px", color: "#666",
-                        }}>📎</button>
+                            display: "flex", alignItems: "center", justifyContent: "center"
+                        }}>
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.51a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+                            </svg>
+                        </button>
                         <input type="file" ref={fileInputRef} style={{ display: "none" }} onChange={sendFile} />
 
                         <button onClick={() => setShowPayModal(true)} title="Send Money" style={{
                             background: C.primary, border: "none", borderRadius: "50%",
-                            width: 34, height: 34, fontSize: 18, cursor: "pointer",
+                            width: 36, height: 36, cursor: "pointer",
                             display: "flex", alignItems: "center", justifyContent: "center",
-                            color: "#fff", fontWeight: 700, flexShrink: 0,
-                        }}>₹</button>
+                            color: "#fff", flexShrink: 0,
+                            boxShadow: "0 2px 8px rgba(79,70,229,0.3)"
+                        }}>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <line x1="12" y1="18" x2="12" y2="6"/><line x1="6" y1="12" x2="18" y2="12"/><path d="M12 9H8.5a1.5 1.5 0 1 0 0 3h7a1.5 1.5 0 1 1 0 3H12"/>
+                            </svg>
+                        </button>
 
                         {isRecording ? (
                             <div style={{
@@ -1382,18 +1728,27 @@ export default function ChatPage() {
                                     <button onClick={sendMessage} style={{
                                         background: C.primary, color: "#fff", border: "none",
                                         borderRadius: "50%", width: 42, height: 42,
-                                        fontSize: 18, cursor: "pointer",
+                                        cursor: "pointer",
                                         display: "flex", alignItems: "center", justifyContent: "center",
                                         flexShrink: 0,
-                                    }}>➤</button>
+                                        boxShadow: "0 2px 10px rgba(79,70,229,0.3)"
+                                    }}>
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ transform: "rotate(45deg)", marginLeft: "-2px" }}>
+                                            <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                                        </svg>
+                                    </button>
                                 ) : (
                                     <button onClick={startRecording} style={{
-                                        background: "#6b7280", color: "#fff", border: "none",
-                                        borderRadius: "50%", width: 42, height: 42,
-                                        fontSize: 20, cursor: "pointer",
+                                        background: "none", color: "#666", border: "none",
+                                        width: 42, height: 42, cursor: "pointer",
                                         display: "flex", alignItems: "center", justifyContent: "center",
                                         flexShrink: 0,
-                                    }}>🎤</button>
+                                    }}>
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                                            <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+                                            <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+                                        </svg>
+                                    </button>
                                 )}
                             </>
                         )}

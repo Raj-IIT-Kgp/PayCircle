@@ -223,4 +223,24 @@ router.get("/online", authMiddleware, (req, res) => {
     res.json({ userIds: getOnlineUserIds() });
 });
 
+// ─── E2E public key: upload own ───────────────────────────────────────────────
+router.post("/keys", authMiddleware, async (req, res) => {
+    const { publicKey } = req.body;
+    if (!publicKey || typeof publicKey !== 'string') {
+        return res.status(400).json({ message: "publicKey required" });
+    }
+    await prisma.user.update({ where: { id: req.userId }, data: { publicKey } });
+    res.json({ message: "Public key stored" });
+});
+
+// ─── E2E public key: fetch another user's ────────────────────────────────────
+router.get("/keys/:userId", authMiddleware, async (req, res) => {
+    const user = await prisma.user.findUnique({
+        where: { id: req.params.userId },
+        select: { publicKey: true }
+    });
+    if (!user) return res.status(404).json({ message: "User not found" });
+    res.json({ publicKey: user.publicKey || null });
+});
+
 module.exports = router;

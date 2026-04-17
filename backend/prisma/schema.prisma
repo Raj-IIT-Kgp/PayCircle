@@ -16,6 +16,7 @@ model User {
   email        String?
   profileImage String   @default("") @map("profile_image")
   lastSeen     DateTime @default(now()) @map("last_seen")
+  publicKey    String   @default("") @map("public_key")
 
   account           Account?
   sentTransfers     Transfer[] @relation("FromUser")

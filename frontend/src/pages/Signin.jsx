@@ -6,6 +6,7 @@ import { InputBox } from "../components/InputBox";
 import { SubHeading } from "../components/SubHeading";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
+import { initE2EKeys, initE2ESessionKey } from "../utils/e2eCrypto";
 
 const backendUrl = import.meta.env.VITE_REACT_APP_BACKEND_URL || "/api/v1";
 
@@ -22,7 +23,10 @@ export const Signin = () => {
         setLoading(true);
         try {
             const response = await axios.post(`${backendUrl}/user/signin`, { phone, password });
-            sessionStorage.setItem("token", response.data.token);
+            const token = response.data.token;
+            sessionStorage.setItem("token", token);
+            const info = await axios.get(`${backendUrl}/user/info`, { headers: { Authorization: `Bearer ${token}` } });
+            await initE2EKeys(info.data.user._id, token, password, backendUrl);
             navigate("/dashboard");
         } catch (e) {
             alert(e.response?.data?.message || "Sign in failed");
@@ -47,7 +51,10 @@ export const Signin = () => {
         setLoading(true);
         try {
             const response = await axios.post(`${backendUrl}/user/signin/verify-otp`, { phone, otp });
-            sessionStorage.setItem("token", response.data.token);
+            const token = response.data.token;
+            sessionStorage.setItem("token", token);
+            const info = await axios.get(`${backendUrl}/user/info`, { headers: { Authorization: `Bearer ${token}` } });
+            await initE2ESessionKey(info.data.user._id, token, backendUrl);
             navigate("/dashboard");
         } catch (e) {
             alert(e.response?.data?.message || "Invalid or expired OTP");

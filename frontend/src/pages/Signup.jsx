@@ -6,6 +6,7 @@ import { InputBox } from "../components/InputBox"
 import { SubHeading } from "../components/SubHeading"
 import axios from "axios";
 import { useNavigate } from "react-router-dom"
+import { initE2EKeys } from "../utils/e2eCrypto";
 
 const backendUrl = import.meta.env.VITE_REACT_APP_BACKEND_URL || "/api/v1";
 
@@ -44,7 +45,10 @@ export const Signup = () => {
                 phone, otp, firstName, lastName, password,
                 email: email || undefined
             });
-            sessionStorage.setItem("token", response.data.token);
+            const token = response.data.token;
+            sessionStorage.setItem("token", token);
+            const info = await axios.get(`${backendUrl}/user/info`, { headers: { Authorization: `Bearer ${token}` } });
+            await initE2EKeys(info.data.user._id, token, password, backendUrl);
             navigate("/dashboard");
         } catch (e) {
             alert(e.response?.data?.message || "Signup failed");
