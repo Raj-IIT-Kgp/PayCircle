@@ -138,8 +138,6 @@ function PayModal({ recipient, onClose, onSuccess, token }) {
         } catch { setError("Network error"); setLoading(false); }
     };
 
-    const initials = ((recipient.firstName?.[0] || "") + (recipient.lastName?.[0] || "")).toUpperCase();
-
     return (
         <div style={{
             position: "fixed", inset: 0, zIndex: 1000,
@@ -153,11 +151,9 @@ function PayModal({ recipient, onClose, onSuccess, token }) {
                 display: "flex", flexDirection: "column", gap: 18,
             }}>
                 <div style={{ textAlign: "center" }}>
-                    <div style={{
-                        width: 56, height: 56, borderRadius: "50%", background: C.primary,
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                        fontSize: 24, color: "#fff", fontWeight: 700, margin: "0 auto 10px",
-                    }}>{initials || "?"}</div>
+                    <div style={{ display: "flex", justifyContent: "center", marginBottom: 10 }}>
+                        <Avatar user={recipient} size={56} fontSize={24} />
+                    </div>
                     <div style={{ fontSize: 18, fontWeight: 700, color: "#111" }}>
                         {recipient.firstName} {recipient.lastName}
                     </div>
@@ -202,6 +198,68 @@ function PayModal({ recipient, onClose, onSuccess, token }) {
                     cursor: "pointer", width: "100%",
                 }}>Cancel</button>
             </div>
+        </div>
+    );
+}
+
+// ── Avatar — shows profile image or initials fallback ─────────────────────────
+function ChatSkeleton() {
+    const rows = [
+        { side: "left",  widths: [140] },
+        { side: "right", widths: [200] },
+        { side: "left",  widths: [180, 160] },
+        { side: "right", widths: [120] },
+        { side: "left",  widths: [220] },
+        { side: "right", widths: [170, 130] },
+    ];
+    return (
+        <div style={{ display: "flex", flexDirection: "column", gap: 18, padding: "20px 16px" }}>
+            <style>{`
+                @keyframes shimmer {
+                    0% { background-position: -400px 0; }
+                    100% { background-position: 400px 0; }
+                }
+                .skeleton-bubble {
+                    background: linear-gradient(90deg, #e8e8e8 25%, #f5f5f5 50%, #e8e8e8 75%);
+                    background-size: 800px 100%;
+                    animation: shimmer 1.4s infinite linear;
+                    border-radius: 16px;
+                    height: 38px;
+                }
+            `}</style>
+            {rows.map((row, i) => (
+                <div key={i} style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: row.side === "right" ? "flex-end" : "flex-start" }}>
+                    {row.widths.map((w, j) => (
+                        <div key={j} className="skeleton-bubble" style={{ width: w }} />
+                    ))}
+                </div>
+            ))}
+        </div>
+    );
+}
+
+function Avatar({ user, size = 40, fontSize = 18 }) {
+    const initials = ((user?.firstName?.[0] || "") + (user?.lastName?.[0] || "")).toUpperCase() || "?";
+    if (user?.profileImage) {
+        return (
+            <img
+                src={user.profileImage}
+                alt={initials}
+                style={{
+                    width: size, height: size, borderRadius: "50%",
+                    objectFit: "cover", flexShrink: 0,
+                    border: "2px solid rgba(255,255,255,0.3)",
+                }}
+            />
+        );
+    }
+    return (
+        <div style={{
+            width: size, height: size, borderRadius: "50%", background: C.primary,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize, color: "#fff", fontWeight: 700, flexShrink: 0,
+        }}>
+            {initials}
         </div>
     );
 }
@@ -312,6 +370,7 @@ export default function ChatPage() {
     const [myPrivateKey, setMyPrivateKey] = useState(null);
     const [selectedUserPublicKey, setSelectedUserPublicKey] = useState(null);
     const [decryptedMessages, setDecryptedMessages] = useState([]);
+    const [decrypting, setDecrypting] = useState(false);
 
     // AI assistant state
     const [showAiInput, setShowAiInput] = useState(false);
@@ -405,19 +464,22 @@ export default function ChatPage() {
     // ── Decrypt messages whenever messages or keys change ─────────────────────
     useEffect(() => {
         if (!myPrivateKey || !selectedUserPublicKey) {
-            setDecryptedMessages(messages);
+            setDecrypting(messages.some(m => m.content?.startsWith("e2e:")));
+            setDecryptedMessages(messages.map(msg =>
+                msg.content?.startsWith("e2e:") ? { ...msg, content: "" } : msg
+            ));
             return;
         }
+        setDecrypting(true);
         let cancelled = false;
         (async () => {
             const result = await Promise.all(messages.map(async (msg) => {
-                // Use pre-computed plaintext for optimistic messages to avoid re-decryption
                 if (msg._plaintext !== undefined) return { ...msg, content: msg._plaintext };
                 if (msg.isDeleted || !msg.content?.startsWith("e2e:")) return msg;
                 const content = await decryptMessage(msg.content, selectedUserPublicKey, myPrivateKey);
                 return { ...msg, content };
             }));
-            if (!cancelled) setDecryptedMessages(result);
+            if (!cancelled) { setDecryptedMessages(result); setDecrypting(false); }
         })();
         return () => { cancelled = true; };
     }, [messages, myPrivateKey, selectedUserPublicKey]);
@@ -482,6 +544,7 @@ export default function ChatPage() {
             body: JSON.stringify({ from: selectedUserId }),
         }).catch(() => {});
     }, [selectedUserId, token]);
+
 
     // ── Send read receipt via WS after myUser is known ─────────────────────────
     useEffect(() => {
@@ -983,7 +1046,7 @@ export default function ChatPage() {
         if (msg.isDeleted) {
             return (
                 <div style={{
-                    display: "inline-block", padding: "8px 16px", borderRadius: 16,
+                    padding: "8px 16px", borderRadius: 16,
                     background: "#f5f5f5", color: "#999", fontSize: 13,
                     fontStyle: "italic", border: "1px solid #eee",
                     display: "flex", alignItems: "center", gap: 8,
@@ -1073,19 +1136,15 @@ export default function ChatPage() {
             );
         }
 
-        const isEncrypted = msg.content?.startsWith("e2e:");
-
         return (
             <div style={{
                 display: "inline-block", padding: "10px 16px", borderRadius: 16,
                 background: isMe ? C.myBubble : "#fff",
-                color: isEncrypted ? "#888" : "#111", 
-                fontSize: isEncrypted ? 13 : 15,
-                fontStyle: isEncrypted ? "italic" : "normal",
+                color: "#111", fontSize: 15,
                 maxWidth: 320, wordBreak: "break-word",
                 boxShadow: "0 1px 2px rgba(0,0,0,0.07)",
             }}>
-                {isEncrypted ? "🔒 Encrypted Message" : msg.content}
+                {msg.content}
             </div>
         );
     };
@@ -1426,13 +1485,8 @@ export default function ChatPage() {
                                 }}
                             >
                                 {/* Avatar */}
-                                <div style={{
-                                    width: 40, height: 40, borderRadius: "50%", background: C.primary,
-                                    display: "flex", alignItems: "center", justifyContent: "center",
-                                    fontSize: 18, color: "#fff", fontWeight: 700,
-                                    marginRight: 12, flexShrink: 0, position: "relative",
-                                }}>
-                                    {((u.firstName?.[0] || "") + (u.lastName?.[0] || "")).toUpperCase()}
+                                <div style={{ marginRight: 12, flexShrink: 0 }}>
+                                    <Avatar user={u} size={40} fontSize={18} />
                                 </div>
                                 {/* Name */}
                                 <span style={{ fontWeight: 500, fontSize: 15, flex: 1 }}>
@@ -1485,13 +1539,7 @@ export default function ChatPage() {
                     )}
                     {selectedUser && (
                         <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, minWidth: 0 }}>
-                            <div style={{
-                                width: 36, height: 36, borderRadius: "50%", background: C.primary,
-                                display: "flex", alignItems: "center", justifyContent: "center",
-                                fontSize: 16, color: "#fff", fontWeight: 700, flexShrink: 0,
-                            }}>
-                                {((selectedUser.firstName?.[0] || "") + (selectedUser.lastName?.[0] || "")).toUpperCase()}
-                            </div>
+                            <Avatar user={selectedUser} size={36} fontSize={15} />
                             <div style={{ flex: 1, minWidth: 0 }}>
                                 <div style={{ fontSize: 16, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{selectedUser.firstName} {selectedUser.lastName}</div>
                                 <div style={{ fontSize: 11, color: typingMap[selectedUserId] ? "#bef264" : "#e0e7ff", opacity: 0.9, display: "flex", alignItems: "center", gap: 4 }}>
@@ -1574,7 +1622,11 @@ export default function ChatPage() {
                         </div>
                     )}
 
-                    {decryptedMessages.map((msg, i) => renderMessage(msg, i))}
+                    {decrypting ? (
+                        <ChatSkeleton />
+                    ) : (
+                        decryptedMessages.map((msg, i) => renderMessage(msg, i))
+                    )}
                     <div ref={messagesEndRef} />
                 </div>
 
@@ -1617,7 +1669,7 @@ export default function ChatPage() {
                             value={aiInput}
                             onChange={e => setAiInput(e.target.value)}
                             onKeyDown={e => e.key === "Enter" && sendAiMessage()}
-                            placeholder={'Ask AI — "What\'s my balance?", "Pay ₹200", "Summarize chat"…'}
+                            placeholder="Ask AI — What's my balance? / Pay ₹200 / Summarize chat"
                             disabled={aiLoading}
                             autoFocus
                             style={{

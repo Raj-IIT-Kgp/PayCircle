@@ -17,7 +17,7 @@ export const Update = () => {
     useEffect(() => {
         const fetchUser = async () => {
             const token = sessionStorage.getItem("token");
-            const backendUrl = import.meta.env.VITE_REACT_APP_BACKEND_URL;
+            const backendUrl = import.meta.env.VITE_REACT_APP_BACKEND_URL || "/api/v1";
             try {
                 const response = await axios.get(`${backendUrl}/user/info`, {
                     headers: { Authorization: "Bearer " + token }
@@ -70,7 +70,7 @@ export const Update = () => {
             return;
         }
         const token = sessionStorage.getItem("token");
-        const backendUrl = import.meta.env.VITE_REACT_APP_BACKEND_URL;
+        const backendUrl = import.meta.env.VITE_REACT_APP_BACKEND_URL || "/api/v1";
         try {
             const response = await axios.put(
                 `${backendUrl}/user/update`,

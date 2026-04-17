@@ -76,13 +76,15 @@ export function getCachedPrivateKey(userId) {
 }
 
 // Initialize E2E keys for password-based login. Encrypts private key with the login password.
+// Never regenerates existing keys — if loading fails, E2EE is simply inactive for the session.
 export async function initE2EKeys(userId, token, passphrase, apiUrl) {
     if (hasStoredKey(userId)) {
         try {
-            const pk = await loadPrivateKey(userId, passphrase);
-            if (pk) return;
-        } catch { /* wrong passphrase — fall through to regenerate */ }
+            await loadPrivateKey(userId, passphrase);
+        } catch { /* wrong passphrase — leave E2EE inactive, don't overwrite */ }
+        return;
     }
+    // First time: generate and store keypair
     const { publicKey, privateKey } = await generateKeyPair();
     await storePrivateKey(userId, privateKey, passphrase);
     await fetch(`${apiUrl}/user/keys`, {
@@ -93,8 +95,37 @@ export async function initE2EKeys(userId, token, passphrase, apiUrl) {
 }
 
 // Initialize E2E keys for OTP-based login. Key lives only for the session.
+// Non-destructive: checks if server already has a key before generating a new one.
 export async function initE2ESessionKey(userId, token, apiUrl) {
     if (getCachedPrivateKey(userId)) return;
+
+    // Check if server already has a key to prevent destructive overwriting
+    try {
+        const resp = await fetch(`${apiUrl}/user/keys/${userId}`, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+        const data = await resp.json();
+        if (data.publicKey) {
+            console.log("E2E identity already established on server. Skipping auto-regeneration.");
+            return;
+        }
+    } catch (e) {
+        console.warn("Could not check server key status:", e);
+    }
+
+    const { publicKey, privateKey } = await generateKeyPair();
+    sessionStorage.setItem(`e2e_sk_${userId}`, privateKey);
+    await fetch(`${apiUrl}/user/keys`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ publicKey }),
+    });
+}
+
+// Reset everything to start fresh if keys are broken
+export async function resetE2EKeys(userId, token, apiUrl) {
+    sessionStorage.removeItem(`e2e_sk_${userId}`);
+    localStorage.removeItem(`e2e_key_${userId}`);
     const { publicKey, privateKey } = await generateKeyPair();
     sessionStorage.setItem(`e2e_sk_${userId}`, privateKey);
     await fetch(`${apiUrl}/user/keys`, {
@@ -131,7 +162,7 @@ export async function decryptMessage(encrypted, senderPublicKeyB64, myPrivateKey
         );
         return new TextDecoder().decode(plain);
     } catch {
-        return '[🔒 Unable to decrypt]';
+        return '[🔒 Secure History - Identity Updated]';
     }
 }
 

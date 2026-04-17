@@ -168,6 +168,7 @@ const updateBody = zod.object({
     password: zod.string().optional(),
     firstName: zod.string().optional(),
     lastName: zod.string().optional(),
+    profileImage: zod.string().optional(),
 });
 
 router.put("/update", authMiddleware, async (req, res) => {
@@ -178,6 +179,7 @@ router.put("/update", authMiddleware, async (req, res) => {
     if (req.body.password !== undefined) data.password = req.body.password;
     if (req.body.firstName !== undefined) data.firstName = req.body.firstName;
     if (req.body.lastName !== undefined) data.lastName = req.body.lastName;
+    if (req.body.profileImage !== undefined) data.profileImage = req.body.profileImage;
 
     await prisma.user.update({ where: { id: req.userId }, data });
     res.json({ message: "Updated successfully" });
