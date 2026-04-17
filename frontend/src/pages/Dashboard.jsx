@@ -37,7 +37,7 @@ export const Dashboard = () => {
     };
 
     return (
-        <div className="bg-gradient-to-br from-blue-50 to-emerald-100 min-h-screen">
+        <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 min-h-screen">
             <Appbar />
             <div className="container mx-auto mt-10 px-4">
                 <h1 className="text-3xl font-bold text-center text-emerald-700 mb-10 drop-shadow">

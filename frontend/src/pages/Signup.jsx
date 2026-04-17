@@ -85,7 +85,7 @@ export const Signup = () => {
                                 <Button onClick={handleVerifyAndCreate} label={loading ? "Creating account..." : "Verify & Sign up"} />
                             </div>
                             <div className="pt-2">
-                                <button className="text-sm text-blue-600 underline" onClick={() => { setStep(1); setOtp(""); }}>
+                                <button className="text-sm text-emerald-600 underline" onClick={() => { setStep(1); setOtp(""); }}>
                                     Change number
                                 </button>
                             </div>

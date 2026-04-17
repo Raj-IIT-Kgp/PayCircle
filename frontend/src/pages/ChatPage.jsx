@@ -5,6 +5,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import Picker from "@emoji-mart/react";
 import data from "@emoji-mart/data";
 import {
+    initE2ESessionKey,
     getCachedPrivateKey,
     encryptMessage,
     decryptMessage,
@@ -15,14 +16,14 @@ import {
 const API_URL = import.meta.env.VITE_REACT_APP_BACKEND_URL || "/api/v1";
 
 const C = {
-    primary:      "#4f46e5",
-    primaryDark:  "#3730a3",
-    myBubble:     "#e0e7ff",
-    chatBg:       "#eff6ff",
-    inputBar:     "#e8edff",
-    selectedRow:  "#e0e7ff",
+    primary:      "#10b981", // Emerald 500
+    primaryDark:  "#059669", // Emerald 600
+    myBubble:     "#dcfce7", // Emerald 100
+    chatBg:       "#f0fdf4", // Emerald 50
+    inputBar:     "#f8fafc", 
+    selectedRow:  "#dcfce7", // Emerald 100
     tickGray:     "#9ca3af",
-    tickBlue:     "#4f46e5",
+    tickBlue:     "#10b981", // Emerald 500
 };
 
 function useQuery() {
@@ -384,7 +385,6 @@ export default function ChatPage() {
     useEffect(() => {
         if (!myUser || myPrivateKey || !token) return;
         // Lazy init for users who are already logged in but missing keys (production update case)
-        const { initE2ESessionKey } = require("../utils/e2eCrypto");
         initE2ESessionKey(myUser._id, token, API_URL)
             .then(() => {
                 const pk = getCachedPrivateKey(myUser._id);
@@ -948,10 +948,10 @@ export default function ChatPage() {
             return (
                 <div style={{
                     display: "inline-flex", alignItems: "center", gap: 8,
-                    background: "linear-gradient(135deg, #6366f1, #8b5cf6)",
+                    background: "linear-gradient(135deg, #10b981, #059669)", // Emerald gradient
                     color: "#fff", padding: "10px 16px", borderRadius: 16,
                     fontSize: 14, maxWidth: 320, wordBreak: "break-word",
-                    boxShadow: "0 2px 8px rgba(99,102,241,0.4)",
+                    boxShadow: "0 2px 8px rgba(16,185,129,0.3)",
                 }}>
                     <span style={{ fontSize: 16 }}>✨</span>
                     <span>{msg.content}</span>
@@ -964,15 +964,16 @@ export default function ChatPage() {
             return (
                 <div style={{
                     display: "inline-block",
-                    background: "linear-gradient(135deg, #f0f4ff, #e8f0fe)",
-                    border: "1.5px solid #c7d7fd",
-                    color: "#1e1b4b", padding: "12px 16px", borderRadius: 16,
+                    background: "linear-gradient(135deg, #f0fdf4, #dcfce7)", // Light emerald gradient
+                    border: "1.5px solid #86efac", // Emerald-300
+                    color: "#064e3b", // Emerald-900
+                    padding: "12px 16px", borderRadius: 16,
                     fontSize: 14, maxWidth: 340, wordBreak: "break-word",
-                    boxShadow: "0 2px 8px rgba(99,102,241,0.15)",
+                    boxShadow: "0 2px 8px rgba(16,185,129,0.1)",
                 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
                         <span style={{ fontSize: 16 }}>🤖</span>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: "#6366f1", textTransform: "uppercase", letterSpacing: 0.5 }}>PayCircle AI</span>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: "#10b981", textTransform: "uppercase", letterSpacing: 0.5 }}>PayCircle AI</span>
                     </div>
                     <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.5 }}>{msg.content}</div>
                 </div>

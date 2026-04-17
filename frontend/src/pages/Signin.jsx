@@ -90,7 +90,7 @@ export const Signin = () => {
                                 <div className="pt-4">
                                     <Button onClick={handleRequestOtp} label={loading ? "Sending OTP..." : "Send OTP to Phone"} />
                                     <div className="pt-2">
-                                        <button className="text-sm text-blue-600 underline" onClick={() => setOtpMode(false)}>
+                                        <button className="text-sm text-emerald-600 underline" onClick={() => setOtpMode(false)}>
                                             Back to Password Login
                                         </button>
                                     </div>
@@ -103,7 +103,7 @@ export const Signin = () => {
                                         <Button onClick={handleVerifyOtp} label={loading ? "Verifying..." : "Verify OTP & Sign in"} />
                                     </div>
                                     <div className="pt-2">
-                                        <button className="text-sm text-blue-600 underline" onClick={() => { setOtpSent(false); setOtp(""); }}>
+                                        <button className="text-sm text-emerald-600 underline" onClick={() => { setOtpSent(false); setOtp(""); }}>
                                             Resend OTP
                                         </button>
                                     </div>

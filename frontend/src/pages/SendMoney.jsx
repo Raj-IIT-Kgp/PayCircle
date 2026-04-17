@@ -10,7 +10,7 @@ export const SendMoney = () => {
     const navigate = useNavigate();
 
     return (
-        <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-blue-50 to-emerald-100 px-4 py-8">
+        <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-emerald-50 to-emerald-100 px-4 py-8">
             <div className="max-w-md w-full p-6 bg-white rounded-xl shadow-lg">
                 <h2 className="text-3xl font-bold text-center mb-6 text-emerald-700">Send Money</h2>
                 <div className="flex items-center space-x-4 mb-6">
@@ -29,7 +29,7 @@ export const SendMoney = () => {
                             type="number"
                             id="amount"
                             placeholder="Enter amount"
-                            className="w-full h-10 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring focus:ring-blue-500"
+                            className="w-full h-10 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring focus:ring-emerald-500"
                         />
                     </div>
                     <button

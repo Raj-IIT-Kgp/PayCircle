@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+    <!-- Premium WhatsApp Green Bubble -->
+    <path d="M50 10C27.9086 10 10 27.9086 10 50C10 57.6534 12.1444 64.8055 15.8624 70.8876L10 90L29.5858 84.3431C35.6201 87.9702 42.5699 90 50 90C72.0914 90 90 72.0914 90 50C90 27.9086 72.0914 10 50 10Z" fill="#25D366"/>
+    <!-- Stylized 'P' for PayCircle -->
+    <path d="M38 32H54C60.6274 32 66 37.3726 66 44C66 50.6274 60.6274 56 54 56H38V32ZM38 56V72" stroke="white" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
